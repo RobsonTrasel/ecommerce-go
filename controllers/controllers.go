@@ -161,9 +161,76 @@ func ProductViewAdmin() gin.HandlerFunc {
 }
 
 func SearchProduct() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var productList []models.Product
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
+		defer cancel()
+
+		cursor, err := ProductCollection.Find(ctx, bson.D{{}})
+
+		if err != nil {
+			c.IndentedJSON(http.StatusInternalServerError, "Something went wrong, please try after some time!")
+			return
+		}
+
+		err = cursor.All(ctx, &productList)
+
+		if err != nil {
+			log.Println(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		defer cursor.Close(ctx)
+
+		if err := cursor.Err(); err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, "Invalid request")
+			return
+		}
+
+		defer cancel()
+
+		c.IndentedJSON(200, productList)
+
+	}
 }
 
 func SearchProductByView() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var searchproducts []models.Product
+		queryParam := c.Query("name")
+		if queryParam == "" {
+			log.Println("Query is empty")
+			c.Header("Content-Type", "application/json")
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Search Index"})
+			c.Abort()
+			return
+		}
 
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+		searchquerydb, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex": queryParam}})
+		if err != nil {
+			c.IndentedJSON(404, "Something went wrong in fetching the DBQuery")
+			return
+		}
+
+		err = searchquerydb.All(ctx, &searchproducts)
+		if err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, "Invalid request")
+			return
+		}
+
+		defer searchquerydb.Close(ctx)
+		if err := searchquerydb.Err(); err != nil {
+			log.Println(err)
+			c.IndentedJSON(400, "Invalid request")
+			return
+		}
+		defer cancel()
+		c.IndentedJSON(200, searchproducts)
+	}
 }
