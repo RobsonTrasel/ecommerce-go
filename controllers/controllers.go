@@ -92,8 +92,8 @@ func SignUp() gin.HandlerFunc {
 		password := HashPassword(*user.Password)
 		user.Password = &password
 
-		user.Created_At, _ = time.Parse(time.RFC3339, time.Now().Format())
-		user.Updated_At, _ = time.Parse(time.RFC3339, time.Now().Format())
+		user.Created_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		user.Updated_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.ID = primitive.NewObjectID()
 		user.User_ID = user.ID.Hex()
 
