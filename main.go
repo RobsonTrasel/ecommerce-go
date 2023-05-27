@@ -19,7 +19,7 @@ func main() {
 
 	app := controllers.NewApplication(database.ProductData(database.Client, "Products"), database.UserData(database.Client, "Users"))
 	router := gin.New()
-	router.use(gin.Logger())
+	router.Use(gin.Logger())
 
 	routes.UserRoutes(router)
 	router.Use(middlewares.Authentication())
@@ -27,7 +27,7 @@ func main() {
 	router.GET("/addtocart", app.AddToCart())
 	router.GET("/removeitem", app.RemoveItem())
 	router.GET("/cartcheckout", app.BuyFromCart())
-	router.GET("/instantbuy", app.instantbuy())
+	router.GET("/instantbuy", app.InstantBuy())
 
 	log.Fatal(router.Run(":" + port))
 
