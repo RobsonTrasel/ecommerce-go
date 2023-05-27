@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"ecommerce-go/models"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,10 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func HashPassword(password string) string {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return string(bytes)
 }
 
 func VerifyPassword(userPassword string, paramPassword string) (bool, string) {
@@ -96,7 +104,41 @@ func SignUp() gin.HandlerFunc {
 }
 
 func Login() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
 
+		var founduser models.User
+		var user models.User
+		if err := c.BindJSON(&user); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err})
+			return
+		}
+
+		err := UserCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&founduser)
+		defer cancel()
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "User or password are incorrect"})
+			return
+		}
+
+		PasswordIsValid, msg := VerifyPassword(*user.Password, *founduser.Password)
+		defer cancel()
+
+		if !PasswordIsValid {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			fmt.Println(msg)
+			return
+		}
+
+		token, refreshToken, _ := generate.TokenGenerator(*founduser.Email, *founduser.FirstName, *founduser.LastName, *&founduser.User_ID)
+
+		defer cancel()
+
+		generate.UpdateAllTokens(token, refreshToken, founduser.User_ID)
+		c.JSON(http.StatusFound, founduser)
+	}
 }
 
 func ProductViewAdmin() gin.HandlerFunc {
